@@ -7,15 +7,48 @@ import plotly.express as px
 # Set up the webpage configuration
 st.set_page_config(layout="wide", page_title="Pro RRG Terminal", page_icon="⚡", initial_sidebar_state="expanded")
 
-# --- DICTIONARY OF MAJOR NSE ETFs ---
+# --- EXPANDED DICTIONARY OF MAJOR NSE ETFs & THEMATICS ---
 NSE_INDICES = {
-    'Nifty Next 50 (JUNIORBEES)': 'JUNIORBEES.NS', 'Nifty Midcap 150 (MID150BEES)': 'MID150BEES.NS', 'Nifty Smallcap 250 (SMA250BEES)': 'SMA250BEES.NS',
-    'Nifty Bank (BANKBEES)': 'BANKBEES.NS', 'Nifty PSU Bank (PSUBNKBEES)': 'PSUBNKBEES.NS', 'Nifty IT (ITBEES)': 'ITBEES.NS',
-    'Nifty Pharma (PHARMABEES)': 'PHARMABEES.NS', 'Nifty Healthcare (HEALTHY)': 'HEALTHY.NS', 'Nifty FMCG (FMCGBEES)': 'FMCGBEES.NS',
-    'Nifty Auto (AUTOBEES)': 'AUTOBEES.NS', 'Nifty Metal (METALBEES)': 'METALBEES.NS', 'Nifty Infra (INFRABEES)': 'INFRABEES.NS',
-    'Nifty Consumption (CONSUMBEES)': 'CONSUMBEES.NS', 'Nifty CPSE (CPSEETF)': 'CPSEETF.NS', 'Nifty Div Opps (DIVOPPBEES)': 'DIVOPPBEES.NS',
-    'Nifty Value 20 (NV20BEES)': 'NV20BEES.NS', 'Gold (GOLDBEES)': 'GOLDBEES.NS', 'Silver (SILVERBEES)': 'SILVERBEES.NS', 'Nasdaq 100 (MON100)': 'MON100.NS'
+    # Broad Market & Cap-Based
+    'Nifty 50 (NIFTYBEES)': 'NIFTYBEES.NS',
+    'Nifty Next 50 (JUNIORBEES)': 'JUNIORBEES.NS', 
+    'Nifty Midcap 150 (MID150BEES)': 'MID150BEES.NS', 
+    'Nifty Smallcap 250 (SMA250BEES)': 'SMA250BEES.NS',
+    'Nifty LargeMidcap 250': 'HDFCNLI.NS', # Example ticker, or standard proxy
+    
+    # Sectoral ETFs
+    'Nifty Bank (BANKBEES)': 'BANKBEES.NS', 
+    'Nifty PSU Bank (PSUBNKBEES)': 'PSUBNKBEES.NS', 
+    'Nifty Private Bank': 'SETFPRBK.NS',
+    'Nifty IT (ITBEES)': 'ITBEES.NS',
+    'Nifty Pharma (PHARMABEES)': 'PHARMABEES.NS', 
+    'Nifty Healthcare (HEALTHY)': 'HEALTHY.NS', 
+    'Nifty FMCG (FMCGBEES)': 'FMCGBEES.NS',
+    'Nifty Auto (AUTOBEES)': 'AUTOBEES.NS', 
+    'Nifty Metal (METALBEES)': 'METALBEES.NS', 
+    'Nifty Infra (INFRABEES)': 'INFRABEES.NS',
+    'Nifty Financial Services (FINNIFTY)': 'NIFTYFINV.NS',
+    'Nifty Realty': 'REALTYSGB.NS', # Proxy/Ticker placeholder or specific ETF
+    
+    # Thematic & Smart Beta / Factor ETFs
+    'Nifty Consumption (CONSUMBEES)': 'CONSUMBEES.NS', 
+    'Nifty CPSE (CPSEETF)': 'CPSEETF.NS', 
+    'Nifty Div Opps (DIVOPPBEES)': 'DIVOPPBEES.NS',
+    'Nifty Value 20 (NV20BEES)': 'NV20BEES.NS', 
+    'Nifty India Defence': 'DEFENCE.NS', # Check specific ticker if changing, using standard mapping
+    'Nifty Manufacturing': 'MAFG.NS', 
+    'Nifty Commodities': 'COMMODITIE.NS',
+    'Nifty Alpha 50': 'ALPHA.NS',
+    'Nifty 200 Momentum 30': 'MOM30.NS',
+
+    # Commodities & Global
+    'Gold (GOLDBEES)': 'GOLDBEES.NS', 
+    'Silver (SILVERBEES)': 'SILVERBEES.NS', 
+    'Nasdaq 100 (MON100)': 'MON100.NS',
+    'NYSE FANG+': 'FANG.NS'
 }
+
+# Clean fallback mapping dictionary generator
 REVERSE_MAP = {v: k.split(" (")[0] for k, v in NSE_INDICES.items()}
 
 # --- SIDEBAR (WEBSITE NAVIGATION) ---
@@ -27,7 +60,7 @@ with st.sidebar:
     default_selections = ['Nifty Bank (BANKBEES)', 'Nifty IT (ITBEES)', 'Nifty Pharma (PHARMABEES)', 'Nifty FMCG (FMCGBEES)', 'Nifty Auto (AUTOBEES)', 'Nifty Metal (METALBEES)']
     selected_index_names = st.multiselect("📊 Select Sectors & ETFs:", options=list(NSE_INDICES.keys()), default=default_selections)
     
-    custom_stocks_input = st.text_input("➕ Add Stocks (e.g. RELIANCE.NS):", value="")
+    custom_stocks_input = st.text_input("➕ Add Stocks (e.g. RELIANCE.NS, TCS.NS):", value="")
     benchmark_input = st.text_input("🎯 Benchmark ETF:", value="NIFTYBEES.NS")
     
     with st.expander("🔧 Advanced Math Parameters"):
@@ -45,7 +78,7 @@ download_list = tickers_list + [benchmark] if benchmark not in tickers_list else
 @st.cache_data(ttl=3600)
 def load_data(symbols, tf):
     period = "1y" if tf == "Daily" else ("3y" if tf == "Weekly" else "5y")
-    df = yf.download(symbols, period=period, interval='1d')['Close']
+    df = yf.download(symbols, period=period, interval='1d', progress=False)['Close']
     
     if isinstance(df, pd.Series):
         df = df.to_frame(name=symbols[0])
@@ -64,7 +97,7 @@ with st.spinner(f"Syncing {timeframe} Market Data..."):
     df = load_data(download_list, timeframe)
 
 if benchmark not in df.columns:
-    st.error(f"Error: Benchmark {benchmark} failed to download.")
+    st.error(f"Error: Benchmark {benchmark} failed to download. Check ticker symbol correctness.")
     st.stop()
 
 active_tickers = [t for t in tickers_list if t in df.columns]
@@ -103,7 +136,7 @@ fig.add_shape(type="rect", x0=100, y0=0, x1=200, y1=100, fillcolor="#918000", op
 fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="#E0002B", opacity=0.12, layer="below", line_width=0)
 fig.add_shape(type="rect", x0=0, y0=100, x1=100, y1=200, fillcolor="#00749D", opacity=0.12, layer="below", line_width=0)
 
-# Labels
+# Quadrant Labels
 fig.add_annotation(x=0.98, y=0.98, xref="paper", yref="paper", text="LEADING", showarrow=False, font=dict(color="#00ff44", size=24, family="Arial Black"), xanchor="right", yanchor="top", opacity=0.3)
 fig.add_annotation(x=0.98, y=0.02, xref="paper", yref="paper", text="WEAKENING", showarrow=False, font=dict(color="#ffdd00", size=24, family="Arial Black"), xanchor="right", yanchor="bottom", opacity=0.3)
 fig.add_annotation(x=0.02, y=0.02, xref="paper", yref="paper", text="LAGGING", showarrow=False, font=dict(color="#ff3333", size=24, family="Arial Black"), xanchor="left", yanchor="bottom", opacity=0.3)
@@ -112,18 +145,15 @@ fig.add_annotation(x=0.02, y=0.98, xref="paper", yref="paper", text="IMPROVING",
 colors = px.colors.qualitative.Light24 + px.colors.qualitative.Dark24
 dashboard_data = []
 
-# Plot lines and calculate deltas
 for i, ticker in enumerate(active_tickers):
     x_data = rs_ratio_df[ticker].values
     y_data = rs_mom_df[ticker].values
     color = colors[i % len(colors)]
     clean_name = REVERSE_MAP.get(ticker, ticker)
     
-    # Delta (Change from previous period)
     r_chg = x_data[-1] - x_data[-2]
     m_chg = y_data[-1] - y_data[-2]
     
-    # Tail & Head
     fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines+markers', marker=dict(size=7, color=color), line=dict(width=3, color=color), name=clean_name, text=dates, hovertemplate=f"<b>{clean_name}</b><br>Date: %{{text}}<br>Strength: %{{x:.2f}}<br>Momentum: %{{y:.2f}}<extra></extra>"))
     fig.add_trace(go.Scatter(x=[x_data[-1]], y=[y_data[-1]], mode='markers+text', marker=dict(size=14, color=color, line=dict(width=2, color='white')), text=[clean_name], textposition="top center", showlegend=False, hoverinfo='skip'))
     
@@ -148,7 +178,6 @@ laggers_df = dash_df[dash_df["Quadrant"] == "Lagging 🔴"]
 top_leader = leaders_df.iloc[0] if not leaders_df.empty else dash_df.iloc[0]
 top_lagger = laggers_df.iloc[-1] if not laggers_df.empty else dash_df.iloc[-1]
 
-# Chart Formatting
 all_x = rs_ratio_df.values.flatten()
 all_y = rs_mom_df.values.flatten()
 x_min, x_max = max(80, all_x.min() - 1), min(120, all_x.max() + 1)
@@ -167,10 +196,8 @@ fig.update_layout(
 # --- WEBSITE UI LAYOUT ---
 st.title("⚡ Pro RRG Trading Terminal")
 
-# Dynamic AI Insight
 st.info(f"💡 **Market Insight ({timeframe}):** **{top_leader['Symbol']}** is currently dominating the market with strong momentum, while **{top_lagger['Symbol']}** is showing the deepest weakness.")
 
-# Top Metric Cards with live Deltas
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("🌟 Top Leader", top_leader['Symbol'], f"{top_leader['Str Chg']:+.2f} Strength")
@@ -183,7 +210,6 @@ with col4:
 
 st.markdown("---")
 
-# Tabs for Website feel
 tab1, tab2 = st.tabs(["🎯 Interactive Rotation Chart", "📋 Pro Data Matrix"])
 
 with tab1:
@@ -191,7 +217,6 @@ with tab1:
 
 with tab2:
     st.markdown(f"### {timeframe} Sector Rankings & Momentum Changes")
-    # Using Column Config for a professional trading table look
     st.dataframe(
         dash_df,
         column_config={
