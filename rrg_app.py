@@ -57,7 +57,17 @@ with st.sidebar:
     
     timeframe = st.selectbox("⏳ Select Timeframe:", ["Daily", "Weekly", "Monthly"], index=1, help="Daily for short-term, Weekly for medium, Monthly for long-term.")
     
-    default_selections = ['Nifty Bank (BANKBEES)', 'Nifty IT (ITBEES)', 'Nifty Pharma (PHARMABEES)', 'Nifty FMCG (FMCGBEES)', 'Nifty Auto (AUTOBEES)', 'Nifty Metal (METALBEES)']
+    # Updated Default Selections
+    default_selections = [
+        'Nifty IT (ITBEES)', 
+        'Nifty Pharma (PHARMABEES)', 
+        'Nifty Healthcare (HEALTHY)', 
+        'Nifty Auto (AUTOBEES)', 
+        'Nifty Metal (METALBEES)', 
+        'Nifty Infra (INFRABEES)', 
+        'Nifty Realty'
+    ]
+    
     selected_index_names = st.multiselect("📊 Select Sectors & ETFs:", options=list(NSE_INDICES.keys()), default=default_selections)
     
     custom_stocks_input = st.text_input("➕ Add Stocks (e.g. RELIANCE.NS, TCS.NS):", value="")
