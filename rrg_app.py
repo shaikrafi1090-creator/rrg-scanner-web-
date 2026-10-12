@@ -74,8 +74,8 @@ with st.sidebar:
     benchmark_input = st.text_input("🎯 Benchmark ETF:", value="NIFTYBEES.NS")
     
     with st.expander("🔧 Advanced Math Parameters"):
-        jdk_period = st.slider("JdK Smoothing", 5, 30, 14)
-        tail_weeks = st.slider("Tail Length (Periods)", 1, 30, 6)
+        jdk_period = st.slider("JdK Smoothing", 5, 52, 14)
+        tail_weeks = st.slider("Tail Length (Periods)", 1, 52, 6)
 
 # --- DATA PROCESSING ---
 tickers_list = [NSE_INDICES[name] for name in selected_index_names]
