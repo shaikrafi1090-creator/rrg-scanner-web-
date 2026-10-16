@@ -23,16 +23,16 @@ NSE_INDICES = {
     "Nifty Smallcap 250 (HDFCSML250)": "HDFCSML250.NS",
     "Nifty LargeMidcap 250 (TOP100CASE)": "TOP100CASE.NS",
 
-    # Sectoral ETFs & Indices
+    # Sectoral ETFs & Indices (Using stable index proxies & ETFs)
     "Nifty Bank (BANKBEES)": "BANKBEES.NS",
     "Nifty PSU Bank (PSUBNKBEES)": "PSUBNKBEES.NS",
     "Nifty Private Bank (SBIETFPB)": "SBIETFPB.NS",
     "Nifty IT (ITBEES)": "ITBEES.NS",
     "Nifty Pharma (PHARMABEES)": "PHARMABEES.NS",
     "Nifty Healthcare (HEALTHY)": "HEALTHY.NS",
-    "Nifty FMCG (FMCGBEES)": "FMCGBEES.NS",
+    "Nifty FMCG (^CNXFMCG)": "^CNXFMCG",
     "Nifty Auto (AUTOBEES)": "AUTOBEES.NS",
-    "Nifty Metal (METALBEES)": "METALBEES.NS",
+    "Nifty Metal (^CNXMETAL)": "^CNXMETAL",
     "Nifty Infra (INFRABEES)": "INFRABEES.NS",
     "Nifty Financial Services (BFSI)": "BFSI.NS",
     "Nifty Realty (MOREALTY)": "MOREALTY.NS",
@@ -73,12 +73,12 @@ SECTOR_CONSTITUENTS = {
         "benchmark": "PHARMABEES.NS",
         "stocks": ["SUNPHARMA.NS", "CIPLA.NS", "DRREDDY.NS", "DIVISLAB.NS", "LUPIN.NS", "AUROPHARMA.NS", "TORNTPHARM.NS", "ZYDUSLIFE.NS"]
     },
-    "Nifty Metal (METALBEES)": {
-        "benchmark": "METALBEES.NS",
+    "Nifty Metal (^CNXMETAL)": {
+        "benchmark": "^CNXMETAL",
         "stocks": ["TATASTEEL.NS", "JSWSTEEL.NS", "HINDALCO.NS", "VEDL.NS", "JINDALSTEL.NS", "COALINDIA.NS", "NMDC.NS", "NATIONALUM.NS"]
     },
-    "Nifty FMCG (FMCGBEES)": {
-        "benchmark": "FMCGBEES.NS",
+    "Nifty FMCG (^CNXFMCG)": {
+        "benchmark": "^CNXFMCG",
         "stocks": ["ITC.NS", "HINDUNILVR.NS", "NESTLEIND.NS", "BRITANNIA.NS", "TATACONSUM.NS", "GODREJCP.NS", "DABUR.NS", "MARICO.NS"]
     },
     "Nifty Infra (INFRABEES)": {
@@ -88,6 +88,12 @@ SECTOR_CONSTITUENTS = {
 }
 
 REVERSE_MAP = {v: k.split(" (")[0] for k, v in NSE_INDICES.items()}
+# Add clean mappings for index proxies too
+REVERSE_MAP.update({
+    "^CNXMETAL": "Nifty Metal",
+    "^CNXFMCG": "Nifty FMCG",
+    "^CNXCMDT": "Nifty Commodities"
+})
 
 # --- SIDEBAR (TERMINAL CONTROLS) ---
 with st.sidebar:
@@ -105,8 +111,8 @@ with st.sidebar:
         "Nifty Bank (BANKBEES)",
         "Nifty Pharma (PHARMABEES)",
         "Nifty Auto (AUTOBEES)",
-        "Nifty Metal (METALBEES)",
-        "Nifty FMCG (FMCGBEES)",
+        "Nifty Metal (^CNXMETAL)",
+        "Nifty FMCG (^CNXFMCG)",
         "Nifty Infra (INFRABEES)",
         "Nifty Realty (MOREALTY)"
     ]
@@ -193,7 +199,6 @@ def generate_rotational_signal(r_prev, m_prev, r_curr, m_curr, heading_deg):
         if curr_q == "Lagging 🔴":
             return "🩸 Breakdown -> Lagging"
 
-    # Intra-quadrant trajectory signals
     if 0 <= heading_deg <= 90:
         if curr_q == "Leading 🟢":
             return "🔥 Northeast Power Trend"
@@ -208,7 +213,6 @@ def generate_rotational_signal(r_prev, m_prev, r_curr, m_curr, heading_deg):
 
 
 def compute_rrg_metrics(price_df, tickers, bench_col, jdk_len, tail_len, offset):
-    """Computes full RRG history, sliced tails, and trajectory physics for a set of tickers."""
     full_series = {}
     tails = {}
     metrics_rows = []
@@ -258,7 +262,6 @@ def compute_rrg_metrics(price_df, tickers, bench_col, jdk_len, tail_len, offset)
         dx = r_curr - r_prev
         dy = m_curr - m_prev
 
-        # Distance from (100, 100), Velocity, and Compass Heading (0° = East, 90° = North, 45° = NE)
         r_dist = float(np.hypot(r_curr - 100.0, m_curr - 100.0))
         velocity = float(np.hypot(dx, dy))
         heading_deg = float((np.degrees(np.arctan2(dy, dx)) + 360.0) % 360.0)
@@ -313,7 +316,6 @@ def build_rrg_figure(tails_dict, metrics_df, allowed_quadrants, use_spline=True,
         n_pts = len(x_data)
         node_sizes = np.linspace(4, 9, n_pts).tolist()
 
-        # 1. Main Tail Trace
         fig.add_trace(go.Scatter(
             x=x_data,
             y=y_data,
@@ -335,7 +337,6 @@ def build_rrg_figure(tails_dict, metrics_df, allowed_quadrants, use_spline=True,
             )
         ))
 
-        # 2. Directional Arrowhead on the Final Segment
         fig.add_trace(go.Scatter(
             x=[x_data[-2], x_data[-1]],
             y=[y_data[-2], y_data[-1]],
@@ -363,17 +364,14 @@ def build_rrg_figure(tails_dict, metrics_df, allowed_quadrants, use_spline=True,
     center_spread = max_dev * 1.18
     low_bound, high_bound = 100 - center_spread, 100 + center_spread
 
-    # Quadrant Background Shapes
     fig.add_shape(type="rect", x0=100, y0=100, x1=high_bound, y1=high_bound, fillcolor="#008217", opacity=0.12, layer="below", line_width=0)
     fig.add_shape(type="rect", x0=100, y0=low_bound, x1=high_bound, y1=100, fillcolor="#918000", opacity=0.12, layer="below", line_width=0)
     fig.add_shape(type="rect", x0=low_bound, y0=low_bound, x1=100, y1=100, fillcolor="#E0002B", opacity=0.12, layer="below", line_width=0)
     fig.add_shape(type="rect", x0=low_bound, y0=100, x1=100, y1=high_bound, fillcolor="#00749D", opacity=0.12, layer="below", line_width=0)
 
-    # Crosshair Lines at 100
     fig.add_vline(x=100, line_width=1.5, line_color="#666")
     fig.add_hline(y=100, line_width=1.5, line_color="#666")
 
-    # Quadrant Watermarks
     fig.add_annotation(x=0.98, y=0.98, xref="paper", yref="paper", text="LEADING", showarrow=False, font=dict(color="#00ff44", size=22, family="Arial Black"), xanchor="right", yanchor="top", opacity=0.28)
     fig.add_annotation(x=0.98, y=0.02, xref="paper", yref="paper", text="WEAKENING", showarrow=False, font=dict(color="#ffdd00", size=22, family="Arial Black"), xanchor="right", yanchor="bottom", opacity=0.28)
     fig.add_annotation(x=0.02, y=0.02, xref="paper", yref="paper", text="LAGGING", showarrow=False, font=dict(color="#ff3333", size=22, family="Arial Black"), xanchor="left", yanchor="bottom", opacity=0.28)
@@ -417,7 +415,10 @@ if df.empty or benchmark not in df.columns:
 
 missing_tickers = [t for t in tickers_list if t not in df.columns]
 if missing_tickers:
-    st.sidebar.warning(f"⚠️ Unavailable tickers: {', '.join(missing_tickers)}")
+    st.sidebar.warning(f"⚠️ Unavailable tickers skipped: {', '.join(missing_tickers)}")
+
+# Filter active tickers to only those successfully downloaded
+tickers_list = [t for t in tickers_list if t in df.columns]
 
 ticker_tails, full_rrg_series, dash_df, skipped_short, as_of_date = compute_rrg_metrics(
     df, tickers_list, benchmark, jdk_period, tail_weeks, replay_offset
@@ -486,11 +487,11 @@ with tab2:
         sector_bench_Default = SECTOR_CONSTITUENTS[chosen_sector]["benchmark"]
         bench_mode = st.radio(
             "Compare Constituents Against:",
-            options=[f"Sector ETF ({sector_bench_Default})", f"Primary Benchmark ({benchmark})"],
+            options=[f"Sector Index/ETF ({sector_bench_Default})", f"Primary Benchmark ({benchmark})"],
             horizontal=True
         )
 
-    drill_bench = sector_bench_Default if "Sector ETF" in bench_mode else benchmark
+    drill_bench = sector_bench_Default if "Sector Index/ETF" in bench_mode else benchmark
     drill_stocks = SECTOR_CONSTITUENTS[chosen_sector]["stocks"]
     drill_download = list(dict.fromkeys(drill_stocks + [drill_bench]))
 
